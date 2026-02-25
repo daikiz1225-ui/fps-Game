@@ -7,7 +7,7 @@ export const state = {
     isOnMyInk: false
 };
 
-// ヒト形態
+// ヒト
 const humanBody = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.5, 1, 4, 8),
     new THREE.MeshStandardMaterial({ color: 0xffffff })
@@ -15,7 +15,7 @@ const humanBody = new THREE.Mesh(
 humanBody.position.y = 1;
 player.add(humanBody);
 
-// イカ形態（平べったい球）
+// イカ
 const squidBody = new THREE.Mesh(
     new THREE.SphereGeometry(0.4, 8, 8),
     new THREE.MeshStandardMaterial({ color: 0xffff00 })
@@ -25,7 +25,7 @@ squidBody.position.y = 0.2;
 squidBody.visible = false;
 player.add(squidBody);
 
-player.position.set(30, 1, 0); 
+player.position.set(50, 0, 0); // 1P開始
 scene.add(player);
 
 export function updatePlayerMode(isSquid) {
