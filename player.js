@@ -2,25 +2,36 @@ import * as THREE from 'three';
 import { scene } from './scene.js';
 
 export const player = new THREE.Group();
-const body = new THREE.Mesh(
+export const state = {
+    ink: 100,
+    isOnMyInk: false
+};
+
+// ヒト形態
+const humanBody = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.5, 1, 4, 8),
     new THREE.MeshStandardMaterial({ color: 0xffffff })
 );
-body.position.y = 1;
-player.add(body);
+humanBody.position.y = 1;
+player.add(humanBody);
 
-const weapon = new THREE.Group();
-const barrel = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.12, 0.15, 1.0),
-    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9 })
+// イカ形態（平べったい球）
+const squidBody = new THREE.Mesh(
+    new THREE.SphereGeometry(0.4, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffff00 })
 );
-barrel.rotation.x = Math.PI / 2;
-barrel.position.set(0.5, 1.4, 0.4); // 高さを1.4へ
-weapon.add(barrel);
+squidBody.scale.set(1, 0.3, 1.5);
+squidBody.position.y = 0.2;
+squidBody.visible = false;
+player.add(squidBody);
 
-player.add(weapon);
-player.position.set(50, 1, 0); // 1Pリスポーン地点
+player.position.set(30, 1, 0); 
 scene.add(player);
+
+export function updatePlayerMode(isSquid) {
+    humanBody.visible = !isSquid;
+    squidBody.visible = isSquid;
+}
 
 export let velocityY = 0;
 export function setVelocityY(v) { velocityY = v; }
