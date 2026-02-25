@@ -11,29 +11,28 @@ function createBox(w, h, d, x, y, z, color) {
     mesh.position.set(x, y, z);
     scene.add(mesh);
     colliders.push({ mesh, h: h, sizeW: w/2, sizeD: d/2 });
+    return mesh;
 }
 
 export function createMap() {
-    // 床
-    createBox(120, 0.1, 80, 0, 0, 0, 0x222222);
+    // 地面：灰色
+    createBox(150, 0.1, 150, 0, 0, 0, 0x888888);
 
-    // 青：リスポーン (1P:右, 2P:左)
-    createBox(10, 1, 10, 45, 0.5, 0, 0x0000ff);
-    createBox(10, 1, 10, -45, 0.5, 0, 0x0000ff);
+    // 青：リスポーン（これまでの指定通り）
+    createBox(10, 1, 10, 50, 0.5, 0, 0x0000ff);
+    createBox(10, 1, 10, -50, 0.5, 0, 0x0000ff);
 
-    // 赤：中央超高台 (高さ30)
-    createBox(12, 30, 12, 0, 15, 0, 0xff0000);
+    // 緑：一番高い中央タワー
+    createBox(15, 30, 15, 0, 15, 0, 0x00ff00);
 
-    // 黒：標準高台とL字壁 (中央から離して配置)
-    // 通常の黒高台
-    createBox(8, 10, 8, 20, 5, 25, 0x111111);
-    createBox(8, 10, 8, -20, 5, -25, 0x111111);
+    // 青：標準高台とL字壁
+    createBox(8, 10, 8, 25, 5, 30, 0x0000ff);
+    createBox(8, 10, 8, -25, 5, -30, 0x0000ff);
 
-    // L字の壁 1 (右上エリア)
-    createBox(12, 10, 3, 25, 5, -20, 0x111111); // 横壁
-    createBox(3, 10, 12, 30, 5, -15, 0x111111); // 縦壁
+    // L字の壁 (青)
+    createBox(15, 12, 3, 30, 6, -25, 0x0000ff);
+    createBox(3, 12, 15, 36, 6, -19, 0x0000ff);
 
-    // L字の壁 2 (左下エリア)
-    createBox(12, 10, 3, -25, 5, 20, 0x111111); // 横壁
-    createBox(3, 10, 12, -30, 5, 15, 0x111111); // 縦壁
+    createBox(15, 12, 3, -30, 6, 25, 0x0000ff);
+    createBox(3, 12, 15, -36, 6, 19, 0x0000ff);
 }
