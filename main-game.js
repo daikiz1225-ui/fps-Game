@@ -5,64 +5,35 @@ import { input } from './input.js';
 import { player, velocityY, setVelocityY, state, updatePlayerMode } from './player.js';
 import { shoot, updateBullets } from './shot.js';
 
-// マップ生成を呼び出し
 createMap();
 
-// 【復活】射撃ボタンUI（もし消えていたらこれで確実に表示されるぜ）
+// 射撃ボタンをHTMLに追加
 if (!document.getElementById('shoot-btn')) {
-    const shootBtn = document.createElement('div');
-    shootBtn.id = 'shoot-btn';
-    shootBtn.innerHTML = "🔫";
-    Object.assign(shootBtn.style, {
+    const btn = document.createElement('div');
+    btn.id = 'shoot-btn';
+    btn.innerHTML = "🔫";
+    Object.assign(btn.style, {
         position: 'fixed', bottom: '160px', right: '60px', width: '90px', height: '90px',
         borderRadius: '50%', background: 'rgba(255,100,0,0.8)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', fontSize: '40px', touchAction: 'none', zIndex: '1000', border: '3px solid #fff', pointerEvents: 'auto'
+        alignItems: 'center', justifyContent: 'center', fontSize: '40px', touchAction: 'none', zIndex: '1000', border: '3px solid #fff'
     });
-    document.body.appendChild(shootBtn);
-    shootBtn.addEventListener('touchstart', (e) => { e.preventDefault(); input.isShooting = true; });
-    shootBtn.addEventListener('touchend', () => { input.isShooting = false; });
+    document.body.appendChild(btn);
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); input.isShooting = true; });
+    btn.addEventListener('touchend', () => { input.isShooting = false; });
 }
 
-const inkBar = document.getElementById('ink-bar');
 let cameraAngleX = Math.PI / 2;
-const splashMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-
-// 飛沫エフェクト
-function createSplash() {
-    const s = new THREE.Mesh(new THREE.SphereGeometry(0.15, 4, 4), splashMaterial);
-    s.position.copy(player.position).y += 0.1;
-    scene.add(s);
-    setTimeout(() => scene.remove(s), 200);
-}
 
 function animate() {
     requestAnimationFrame(animate);
 
-    // カメラ回転（左右のみ。look.yを無視して上下固定）
     cameraAngleX += input.look.x * 4;
     input.look.x = 0; 
 
-    // インク判定（足元が自分の色か）
-    state.isOnMyInk = false;
-    for (let block of paintableBlocks) {
-        if (player.position.distanceTo(block.position) < 1.5 && block.material.color.getHex() === 0xffff00) {
-            state.isOnMyInk = true;
-            break;
-        }
-    }
-
-    // 【修正】移動速度：イカ時の最高速を 0.45 -> 0.27 (60%) に落とした
+    // 速度調整 (イカ時: 0.27)
     let speed = input.isSquid ? (state.isOnMyInk ? 0.27 : 0.05) : 0.22;
     
-    // イカ中の回復と飛沫
-    if (input.isSquid && state.isOnMyInk) {
-        state.ink = Math.min(100, state.ink + 1.2);
-        if ((input.move.x !== 0 || input.move.y !== 0) && Math.random() > 0.5) createSplash();
-    } else if (!input.isShooting) {
-        state.ink = Math.min(100, state.ink + 0.1);
-    }
-
-    // 移動処理
+    // 移動
     if (input.move.x !== 0 || input.move.y !== 0) {
         const moveAngle = Math.atan2(input.move.x, input.move.y) + cameraAngleX;
         player.position.x += Math.sin(moveAngle) * speed;
@@ -70,10 +41,7 @@ function animate() {
         player.rotation.y = moveAngle;
     }
 
-    updatePlayerMode(input.isSquid);
-    if (inkBar) inkBar.style.width = state.ink + "%";
-
-    // 射撃処理
+    // 射撃
     if (input.isShooting && !input.isSquid) {
         player.rotation.y = cameraAngleX + Math.PI;
         if (Math.random() > 0.75) {
@@ -83,33 +51,10 @@ function animate() {
         }
     }
 
-    // 壁との衝突判定（既存のマップデータをそのまま使用）
-    let targetY = 0;
-    colliders.forEach(c => {
-        const dx = player.position.x - c.pos.x;
-        const dz = player.position.z - c.pos.z;
-        if (Math.abs(dx) < c.sizeW + 0.6 && Math.abs(dz) < c.sizeD + 0.6) {
-            if (player.position.y >= c.h - 0.8) targetY = c.h;
-            else {
-                if (Math.abs(dx) > Math.abs(dz)) player.position.x = c.pos.x + Math.sign(dx) * (c.sizeW + 0.61);
-                else player.position.z = c.pos.z + Math.sign(dz) * (c.sizeD + 0.61);
-            }
-        }
-    });
-
-    // ジャンプと重力
-    if (input.jump && player.position.y <= targetY + 0.1) {
-        setVelocityY(0.4);
-        input.jump = false;
-    }
-    player.position.y += velocityY;
-    if (player.position.y > targetY) setVelocityY(velocityY - 0.02);
-    else { player.position.y = targetY; setVelocityY(0); }
-
-    // 弾の更新
     updateBullets();
+    updatePlayerMode(input.isSquid);
 
-    // 【修正】カメラ固定（高さを 4 に下げて、注視点を y+3 に上げて上向きにする）
+    // カメラ固定（上向き）
     camera.position.set(
         player.position.x + Math.sin(cameraAngleX) * 14,
         player.position.y + 4, 
