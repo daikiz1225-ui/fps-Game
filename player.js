@@ -1,35 +1,46 @@
 import * as THREE from 'three';
 import { scene } from './scene.js';
+import { paintableBlocks } from './map.js';
+import { state } from './player.js';
 
-export const player = new THREE.Group();
-export const state = {
-    ink: 100,
-    isOnMyInk: false
-};
+const bullets = [];
+const paintColor = 0xffff00;
 
-const humanBody = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.5, 1, 4, 8),
-    new THREE.MeshStandardMaterial({ color: 0xffffff })
-);
-humanBody.position.y = 1;
-player.add(humanBody);
+export function shoot(gunPosition, cameraDirection) {
+    if (state.ink < 2) return;
+    state.ink -= 1.5;
 
-const squidBody = new THREE.Mesh(
-    new THREE.SphereGeometry(0.4, 8, 8),
-    new THREE.MeshStandardMaterial({ color: 0xffff00 })
-);
-squidBody.scale.set(1, 0.3, 1.5);
-squidBody.position.y = 0.2;
-squidBody.visible = false;
-player.add(squidBody);
+    const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4, 8, 8),
+        new THREE.MeshBasicMaterial({ color: paintColor })
+    );
+    sphere.position.copy(gunPosition).y += 1.6;
+    
+    const velocity = cameraDirection.clone().multiplyScalar(2.2);
+    velocity.y += 0.1; 
 
-player.position.set(50, 0, 0); 
-scene.add(player);
-
-export function updatePlayerMode(isSquid) {
-    humanBody.visible = !isSquid;
-    squidBody.visible = isSquid;
+    bullets.push({ mesh: sphere, vel: velocity, life: 80 });
+    scene.add(sphere);
 }
 
-export let velocityY = 0;
-export function setVelocityY(v) { velocityY = v; }
+export function updateBullets() {
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.mesh.position.add(b.vel);
+        b.vel.y -= 0.015;
+
+        let hit = false;
+        for (let block of paintableBlocks) {
+            if (b.mesh.position.distanceTo(block.position) < 1.3) {
+                block.material.color.set(paintColor);
+                hit = true;
+                break;
+            }
+        }
+
+        if (hit || b.mesh.position.y < -1 || b.life-- < 0) {
+            scene.remove(b.mesh);
+            bullets.splice(i, 1);
+        }
+    }
+}
