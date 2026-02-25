@@ -4,38 +4,51 @@ import { scene } from './scene.js';
 export const colliders = [];
 
 export function createMap() {
-    // ベース地面
+    // 床
     const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(100, 100),
-        new THREE.MeshStandardMaterial({ color: 0x333333 })
+        new THREE.PlaneGeometry(120, 80),
+        new THREE.MeshStandardMaterial({ color: 0x222222 })
     );
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
-    // 「リ」の字リスポーン地点（1：高、2：中、3：低）
+    // 青：リスポーン地点 (1P: 右, 2P: 左)
     const spawnData = [
-        { h: 15, z: -25, color: 0xff0000 }, // リ1 (一番高い)
-        { h: 10, z: 0, color: 0xffaa00 },   // リ2
-        { h: 5, z: 25, color: 0xffff00 }    // リ3
+        { x: 45, z: 0, name: '1P_Spawn' },
+        { x: -45, z: 0, name: '2P_Spawn' }
     ];
-
-    spawnData.forEach((data, i) => {
-        const box = new THREE.Mesh(
-            new THREE.BoxGeometry(10, data.h, 10),
-            new THREE.MeshStandardMaterial({ color: data.color })
+    spawnData.forEach(s => {
+        const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(10, 1, 10),
+            new THREE.MeshStandardMaterial({ color: 0x0000ff, emissive: 0x000055 })
         );
-        box.position.set(-25, data.h / 2, data.z);
-        scene.add(box);
-        colliders.push({ mesh: box, h: data.h, size: 5 });
+        mesh.position.set(s.x, 0.5, s.z);
+        scene.add(mesh);
+        colliders.push({ mesh, h: 1, size: 5 });
     });
 
-    // 超高台（中央）
-    const towerH = 20; // さらに高く！
-    const tower = new THREE.Mesh(
-        new THREE.BoxGeometry(12, towerH, 12),
-        new THREE.MeshStandardMaterial({ color: 0x4444ff })
+    // 赤：一番高い中央タワー
+    const redTowerH = 30;
+    const redTower = new THREE.Mesh(
+        new THREE.BoxGeometry(12, redTowerH, 12),
+        new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.3 })
     );
-    tower.position.set(10, towerH / 2, 0);
-    scene.add(tower);
-    colliders.push({ mesh: tower, h: towerH, size: 6 });
+    redTower.position.set(0, redTowerH / 2, 0);
+    scene.add(redTower);
+    colliders.push({ mesh: redTower, h: redTowerH, size: 6 });
+
+    // 黒：普通の高台 (中央タワーの周りに配置)
+    const blackPos = [
+        { x: 15, z: 15 }, { x: -15, z: 15 },
+        { x: 15, z: -15 }, { x: -15, z: -15 }
+    ];
+    blackPos.forEach(p => {
+        const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(8, 10, 8),
+            new THREE.MeshStandardMaterial({ color: 0x111111 })
+        );
+        mesh.position.set(p.x, 5, p.z);
+        scene.add(mesh);
+        colliders.push({ mesh, h: 10, size: 4 });
+    });
 }
