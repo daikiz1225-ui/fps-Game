@@ -7,7 +7,6 @@ import { shoot, updateBullets } from './shot.js';
 
 createMap();
 
-// 射撃ボタンUI
 const shootBtn = document.createElement('div');
 shootBtn.innerHTML = "🔫";
 Object.assign(shootBtn.style, {
@@ -36,7 +35,6 @@ function animate() {
     cameraAngleX += input.look.x * 4;
     input.look.x = 0; 
 
-    // 自分のインク判定
     state.isOnMyInk = false;
     for (let block of paintableBlocks) {
         if (player.position.distanceTo(block.position) < 1.5 && block.material.color.getHex() === 0xffff00) {
@@ -45,11 +43,13 @@ function animate() {
         }
     }
 
-    // 移動と回復
-    let speed = input.isSquid ? (state.isOnMyInk ? 0.45 : 0.05) : 0.22;
+    // イカ速度を 0.45 -> 0.27 (60%) に落としたぜ！
+    let speed = input.isSquid ? (state.isOnMyInk ? 0.27 : 0.05) : 0.22;
+    
     if (input.isSquid && state.isOnMyInk) {
         state.ink = Math.min(100, state.ink + 1.2);
-        if (input.move.x !== 0 || input.move.y !== 0) createSplash();
+        // 飛沫の出る頻度も調整
+        if ((input.move.x !== 0 || input.move.y !== 0) && Math.random() > 0.5) createSplash();
     } else if (!input.isShooting) {
         state.ink = Math.min(100, state.ink + 0.1);
     }
@@ -73,7 +73,6 @@ function animate() {
         }
     }
 
-    // 壁との衝突
     let targetY = 0;
     colliders.forEach(c => {
         const dx = player.position.x - c.pos.x;
@@ -97,12 +96,14 @@ function animate() {
 
     updateBullets();
 
+    // カメラ位置を調整 (高さ 6 -> 4, 距離 12 -> 14 にして、より上向き視点に)
     camera.position.set(
-        player.position.x + Math.sin(cameraAngleX) * 12,
-        player.position.y + 6,
-        player.position.z + Math.cos(cameraAngleX) * 12
+        player.position.x + Math.sin(cameraAngleX) * 14,
+        player.position.y + 4, 
+        player.position.z + Math.cos(cameraAngleX) * 14
     );
-    camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
+    // プレイヤーの少し上 (y+3) を見るようにして、カメラを上に向ける
+    camera.lookAt(player.position.x, player.position.y + 3, player.position.z);
 
     renderer.render(scene, camera);
 }
