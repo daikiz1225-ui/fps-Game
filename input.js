@@ -12,6 +12,7 @@ const joyStick = document.getElementById('joy-stick');
 let lastTouchX = 0;
 
 joyBase.addEventListener('touchmove', (e) => {
+    e.preventDefault();
     const rect = joyBase.getBoundingClientRect();
     const touch = [...e.touches].find(t => t.clientX < window.innerWidth / 2);
     if (!touch) return;
@@ -29,7 +30,6 @@ window.addEventListener('touchmove', (e) => {
     if (!touch) return;
     if (lastTouchX !== 0) {
         input.look.x = (touch.clientX - lastTouchX) * -SENSITIVITY;
-        // input.look.y は無視（上下移動を固定）
     }
     lastTouchX = touch.clientX;
 }, { passive: false });
@@ -47,7 +47,6 @@ document.getElementById('jump-btn').addEventListener('touchstart', (e) => {
     input.jump = true;
 });
 
-// イカモード切り替え
 const squidBtn = document.getElementById('squid-btn');
 squidBtn.addEventListener('touchstart', (e) => {
     e.preventDefault();
