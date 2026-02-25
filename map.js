@@ -3,52 +3,37 @@ import { scene } from './scene.js';
 
 export const colliders = [];
 
+function createBox(w, h, d, x, y, z, color) {
+    const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshStandardMaterial({ color: color })
+    );
+    mesh.position.set(x, y, z);
+    scene.add(mesh);
+    colliders.push({ mesh, h: h, sizeW: w/2, sizeD: d/2 });
+}
+
 export function createMap() {
     // 床
-    const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(120, 80),
-        new THREE.MeshStandardMaterial({ color: 0x222222 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    scene.add(floor);
+    createBox(120, 0.1, 80, 0, 0, 0, 0x222222);
 
-    // 青：リスポーン地点 (1P: 右, 2P: 左)
-    const spawnData = [
-        { x: 45, z: 0, name: '1P_Spawn' },
-        { x: -45, z: 0, name: '2P_Spawn' }
-    ];
-    spawnData.forEach(s => {
-        const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(10, 1, 10),
-            new THREE.MeshStandardMaterial({ color: 0x0000ff, emissive: 0x000055 })
-        );
-        mesh.position.set(s.x, 0.5, s.z);
-        scene.add(mesh);
-        colliders.push({ mesh, h: 1, size: 5 });
-    });
+    // 青：リスポーン (1P:右, 2P:左)
+    createBox(10, 1, 10, 45, 0.5, 0, 0x0000ff);
+    createBox(10, 1, 10, -45, 0.5, 0, 0x0000ff);
 
-    // 赤：一番高い中央タワー
-    const redTowerH = 30;
-    const redTower = new THREE.Mesh(
-        new THREE.BoxGeometry(12, redTowerH, 12),
-        new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.3 })
-    );
-    redTower.position.set(0, redTowerH / 2, 0);
-    scene.add(redTower);
-    colliders.push({ mesh: redTower, h: redTowerH, size: 6 });
+    // 赤：中央超高台 (高さ30)
+    createBox(12, 30, 12, 0, 15, 0, 0xff0000);
 
-    // 黒：普通の高台 (中央タワーの周りに配置)
-    const blackPos = [
-        { x: 15, z: 15 }, { x: -15, z: 15 },
-        { x: 15, z: -15 }, { x: -15, z: -15 }
-    ];
-    blackPos.forEach(p => {
-        const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(8, 10, 8),
-            new THREE.MeshStandardMaterial({ color: 0x111111 })
-        );
-        mesh.position.set(p.x, 5, p.z);
-        scene.add(mesh);
-        colliders.push({ mesh, h: 10, size: 4 });
-    });
+    // 黒：標準高台とL字壁 (中央から離して配置)
+    // 通常の黒高台
+    createBox(8, 10, 8, 20, 5, 25, 0x111111);
+    createBox(8, 10, 8, -20, 5, -25, 0x111111);
+
+    // L字の壁 1 (右上エリア)
+    createBox(12, 10, 3, 25, 5, -20, 0x111111); // 横壁
+    createBox(3, 10, 12, 30, 5, -15, 0x111111); // 縦壁
+
+    // L字の壁 2 (左下エリア)
+    createBox(12, 10, 3, -25, 5, 20, 0x111111); // 横壁
+    createBox(3, 10, 12, -30, 5, 15, 0x111111); // 縦壁
 }
