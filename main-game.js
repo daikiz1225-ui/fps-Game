@@ -8,63 +8,60 @@ createMap();
 
 let cameraAngleX = 0;
 let cameraAngleY = 0;
-const cameraDist = 8;
+const cameraDist = 12; // 高台が高いのでカメラを少し引く
 
 function animate() {
     requestAnimationFrame(animate);
 
-    // 1. カメラ回転の計算
-    cameraAngleX -= input.look.x * 2.0; 
-    cameraAngleY = Math.max(-Math.PI/3, Math.min(Math.PI/3, cameraAngleY - input.look.y * 2.0));
-    input.look.x = 0; input.look.y = 0; // リセット
+    // カメラ回転 (反転反映済み)
+    cameraAngleX += input.look.x; 
+    cameraAngleY = Math.max(-Math.PI/3, Math.min(Math.PI/3, cameraAngleY + input.look.y));
+    input.look.x = 0; input.look.y = 0;
 
-    // 2. カメラ基準の移動
+    // カメラ基準移動
     if (input.move.x !== 0 || input.move.y !== 0) {
         const moveAngle = Math.atan2(input.move.x, input.move.y) + cameraAngleX;
-        player.position.x += Math.sin(moveAngle) * 0.15;
-        player.position.z += Math.cos(moveAngle) * 0.15;
+        player.position.x += Math.sin(moveAngle) * 0.18;
+        player.position.z += Math.cos(moveAngle) * 0.18;
     }
 
-    // 3. ジャンプと簡易当たり判定（高台チェック）
-    if (input.jump && player.position.y <= 0.05) {
-        setVelocityY(0.25);
-        input.jump = false;
-    }
-    
-    let nextY = player.position.y + velocityY;
-    
-    // 高台の上に乗る判定
-    let onPlatform = false;
+    // 地面・高台の高さ判定
+    let targetFloorY = 0;
     colliders.forEach(obj => {
-        const dx = Math.abs(player.position.x - obj.position.x);
-        const dz = Math.abs(player.position.z - obj.position.z);
-        if (dx < 5.5 && dz < 5.5) { // 高台の幅(10/2) + プレイヤー半径
-            if (player.position.y >= 7.9) { // 高台の高さ
-                nextY = Math.max(nextY, 8);
-                onPlatform = true;
+        const dx = Math.abs(player.position.x - obj.mesh.position.x);
+        const dz = Math.abs(player.position.z - obj.mesh.position.z);
+        if (dx < obj.size && dz < obj.size) {
+            if (player.position.y >= obj.h - 0.5) {
+                targetFloorY = obj.h;
             } else {
-                // 横の壁判定（簡易的に押し戻す）
-                player.position.x -= input.move.x * 0.16;
-                player.position.z -= input.move.y * 0.16;
+                // 壁にぶつかったら押し戻す
+                player.position.x -= Math.sign(player.position.x - obj.mesh.position.x) * -0.1;
+                player.position.z -= Math.sign(player.position.z - obj.mesh.position.z) * -0.1;
             }
         }
     });
 
-    player.position.y = nextY;
-    if (player.position.y > (onPlatform ? 8 : 0)) {
-        setVelocityY(velocityY - 0.012);
+    // ジャンプ処理
+    if (input.jump && player.position.y <= targetFloorY + 0.05) {
+        setVelocityY(0.3);
+        input.jump = false;
+    }
+    
+    player.position.y += velocityY;
+    if (player.position.y > targetFloorY) {
+        setVelocityY(velocityY - 0.015);
     } else {
-        player.position.y = onPlatform ? 8 : 0;
+        player.position.y = targetFloorY;
         setVelocityY(0);
     }
 
-    // 4. カメラの追従（プレイヤーの後ろに固定）
+    // カメラ追従
     const camX = player.position.x + Math.sin(cameraAngleX) * cameraDist;
     const camZ = player.position.z + Math.cos(cameraAngleX) * cameraDist;
-    const camY = player.position.y + 4 + Math.sin(cameraAngleY) * cameraDist;
+    const camY = player.position.y + 6 + Math.sin(cameraAngleY) * (cameraDist * 0.5);
     
     camera.position.set(camX, camY, camZ);
-    camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
+    camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
 
     renderer.render(scene, camera);
 }
