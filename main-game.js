@@ -1,161 +1,134 @@
 import * as THREE from 'three';
 import { scene, camera, renderer } from './scene.js';
 import { input } from './input.js';
-import { player, state, updatePlayerMode, setVelocityY, velocityY } from './player.js';
 
-// --- 1. 射撃・塗り用データの定義 ---
-const bullets = [];
-const paintableMeshes = [];
-const colliders = [];
-const paintColor = 0xffff00;
+// --- 1. プレイヤーと状態の定義（player.jsが壊れていても動くように再定義） ---
+const player = new THREE.Group();
+const human = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1, 4, 8), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+human.position.y = 1;
+const squid = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffff00 }));
+squid.scale.set(1, 0.3, 1.5);
+squid.position.y = 0.2;
+squid.visible = false;
+player.add(human, squid);
+scene.add(player);
 
-// --- 2. 射撃ボタンの強制生成 ---
-function ensureUI() {
-    if (!document.getElementById('shoot-btn')) {
-        const btn = document.createElement('div');
-        btn.id = 'shoot-btn';
-        btn.innerHTML = "🔫";
-        Object.assign(btn.style, {
-            position: 'fixed', bottom: '160px', right: '60px', width: '90px', height: '90px',
-            borderRadius: '50%', background: 'rgba(255,100,0,0.8)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', fontSize: '40px', touchAction: 'none', zIndex: '2000', border: '3px solid #fff'
-        });
-        document.body.appendChild(btn);
-        btn.addEventListener('touchstart', (e) => { e.preventDefault(); input.isShooting = true; });
-        btn.addEventListener('touchend', () => { input.isShooting = false; });
-    }
+let inkAmount = 100;
+let velY = 0;
+
+// --- 2. 射撃ボタンとUIの強制復活 ---
+function setupUI() {
+    // 既存のボタンを掃除
+    const oldBtn = document.getElementById('shoot-btn');
+    if (oldBtn) oldBtn.remove();
+
+    const btn = document.createElement('div');
+    btn.id = 'shoot-btn';
+    btn.innerHTML = "🔫";
+    Object.assign(btn.style, {
+        position: 'fixed', bottom: '160px', right: '60px', width: '90px', height: '90px',
+        borderRadius: '50%', background: 'orange', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', fontSize: '40px', 
+        zIndex: '3000', border: '4px solid white', pointerEvents: 'auto', touchAction: 'none'
+    });
+    document.body.appendChild(btn);
+
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); input.isShooting = true; });
+    btn.addEventListener('touchend', () => { input.isShooting = false; });
 }
-ensureUI();
+setupUI();
 
-// --- 3. 画像（IMG_0668/0669）通りのマップ作成 ---
-function createField() {
+// --- 3. 画像（IMG_0668/0669）通りのマップ配置 ---
+const paintableMeshes = [];
+function buildMap() {
     // 地面
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(100, 1, 100), new THREE.MeshStandardMaterial({ color: 0x888888 }));
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(100, 1, 100), new THREE.MeshStandardMaterial({ color: 0x555555 }));
     floor.position.y = -0.5;
     scene.add(floor);
     paintableMeshes.push(floor);
 
-    // 壁を配置する関数
-    function addWall(w, h, d, x, z, color = 0x0000ff) {
-        const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color }));
-        wall.position.set(x, h / 2, z);
-        scene.add(wall);
-        paintableMeshes.push(wall);
-        colliders.push(new THREE.Box3().setFromObject(wall));
-    }
+    // 壁を作る関数
+    const addBox = (w, h, d, x, z, col = 0x0000ff) => {
+        const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col }));
+        box.position.set(x, h/2, z);
+        scene.add(box);
+        paintableMeshes.push(box);
+    };
 
-    // 画像の中央「2」（広場・赤枠）
-    addWall(20, 5, 15, 0, 0, 0x555555);
-
-    // 画像の「L字の壁」2箇所
-    addWall(15, 8, 2, -20, 20); // 左下L字の横
-    addWall(2, 8, 15, -28.5, 13.5); // 左下L字の縦
-    
-    addWall(15, 8, 2, 20, -20); // 右上L字の横
-    addWall(2, 8, 15, 28.5, -13.5); // 右上L字の縦
-
-    // 画像の直線「3」2箇所
-    addWall(2, 10, 15, -15, -15); // 左上の縦棒
-    addWall(2, 10, 10, 15, 15);   // 右下の縦棒
-
-    // リスポーン地点（画像の両端の丸）
-    addWall(8, 0.2, 8, -40, 0, 0x0000ff); // 1P側
-    addWall(8, 0.2, 8, 40, 0, 0x0000ff);  // 2P側
+    addBox(20, 4, 15, 0, 0, 0x777777); // 中央広場
+    addBox(15, 6, 2, -20, 20);        // L字1
+    addBox(2, 6, 15, -28, 13);        // L字1
+    addBox(15, 6, 2, 20, -20);        // L字2
+    addBox(2, 6, 15, 28, -13);        // L字2
 }
-createField();
+buildMap();
 
-// --- 4. 射撃・塗りシステム ---
-function shootInk() {
-    if (state.ink < 2) return;
-    state.ink -= 1.2;
-
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), new THREE.MeshBasicMaterial({ color: paintColor }));
+// --- 4. 射撃システム ---
+const bullets = [];
+function fire() {
+    if (inkAmount < 2) return;
+    inkAmount -= 1.5;
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+    b.position.copy(player.position).y += 1.2;
     const dir = new THREE.Vector3();
     camera.getWorldDirection(dir);
-    
-    b.position.copy(player.position).y += 1.5;
-    const vel = dir.clone().multiplyScalar(1.8);
-    vel.y += 0.1;
-    bullets.push({ mesh: b, vel: vel, life: 60 });
+    bullets.push({ mesh: b, vel: dir.multiplyScalar(1.5).add(new THREE.Vector3(0, 0.1, 0)), life: 100 });
     scene.add(b);
 }
 
-function updateInk() {
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        const b = bullets[i];
-        b.mesh.position.add(b.vel);
-        b.vel.y -= 0.015;
-
-        // 当たり判定と塗り
-        const bBox = new THREE.Box3().setFromObject(b.mesh);
-        let hit = false;
-        
-        paintableMeshes.forEach(m => {
-            const mBox = new THREE.Box3().setFromObject(m);
-            if (bBox.intersectsBox(mBox)) {
-                // 簡易的な塗り：当たったメッシュの色を変える
-                m.material.color.set(paintColor);
-                hit = true;
-            }
-        });
-
-        if (hit || b.mesh.position.y < 0 || b.life-- < 0) {
-            scene.remove(b.mesh);
-            bullets.splice(i, 1);
-        }
-    }
-}
-
 // --- 5. メインループ ---
-let cameraAngleX = Math.PI / 2;
+let camAngle = Math.PI / 2;
 
 function animate() {
     requestAnimationFrame(animate);
 
-    // 入力：カメラ回転
-    cameraAngleX += input.look.x * 4;
+    // カメラ回転
+    camAngle += input.look.x * 4;
     input.look.x = 0;
 
-    // 【修正】イカ速度 60% (0.45 * 0.6 = 0.27)
-    let speed = input.isSquid ? 0.27 : 0.18;
-
-    // 移動処理
+    // イカ速度 60% (0.25程度)
+    let speed = input.isSquid ? 0.25 : 0.15;
     if (input.move.x !== 0 || input.move.y !== 0) {
-        const moveAngle = Math.atan2(input.move.x, input.move.y) + cameraAngleX;
-        player.position.x += Math.sin(moveAngle) * speed;
-        player.position.z += Math.cos(moveAngle) * speed;
-        player.rotation.y = moveAngle;
+        const moveA = Math.atan2(input.move.x, input.move.y) + camAngle;
+        player.position.x += Math.sin(moveA) * speed;
+        player.position.z += Math.cos(moveA) * speed;
+        player.rotation.y = moveA;
     }
 
-    // 射撃実行
+    // モード切り替え
+    human.visible = !input.isSquid;
+    squid.visible = input.isSquid;
+
+    // 射撃
     if (input.isShooting && !input.isSquid) {
-        if (Math.random() > 0.8) shootInk();
+        if (Math.random() > 0.8) fire();
     }
 
-    // 重力と衝突（簡易）
-    player.position.y += velocityY;
-    if (player.position.y > 0) {
-        setVelocityY(velocityY - 0.02);
-    } else {
-        player.position.y = 0;
-        setVelocityY(0);
+    // 弾の更新と塗り
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.mesh.position.add(b.vel);
+        b.vel.y -= 0.01;
+        if (b.mesh.position.y < 0 || b.life-- < 0) {
+            paintableMeshes.forEach(m => {
+                if (b.mesh.position.distanceTo(m.position) < 5) m.material.color.set(0xffff00);
+            });
+            scene.remove(b.mesh);
+            bullets.splice(i, 1);
+        }
     }
-    if (input.jump && player.position.y <= 0.1) setVelocityY(0.4);
 
-    updateInk();
-    updatePlayerMode(input.isSquid);
+    // UI更新
+    const bar = document.getElementById('ink-bar');
+    if (bar) bar.style.width = inkAmount + "%";
 
-    // インクUI更新
-    const inkBar = document.getElementById('ink-bar');
-    if (inkBar) inkBar.style.width = state.ink + "%";
-
-    // 【修正】カメラ固定：上向き
+    // カメラ固定（上向き）
     camera.position.set(
-        player.position.x + Math.sin(cameraAngleX) * 12,
-        player.position.y + 4,
-        player.position.z + Math.cos(cameraAngleX) * 12
+        player.position.x + Math.sin(camAngle) * 12,
+        player.position.y + 5,
+        player.position.z + Math.cos(camAngle) * 12
     );
-    camera.lookAt(player.position.x, player.position.y + 2.5, player.position.z);
+    camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
 
     renderer.render(scene, camera);
 }
